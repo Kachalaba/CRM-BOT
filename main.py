@@ -1,15 +1,25 @@
 import asyncio
 import logging
 import os
+import signal
 from logging.handlers import RotatingFileHandler
 
 from aiogram import Bot
 from dotenv import load_dotenv
 
 import handlers
+import sheets
 from sheets import init_gspread
 
 bot: Bot | None = None
+
+
+async def shutdown() -> None:
+    """Gracefully stop polling and close gspread session."""
+    await handlers.dp.stop_polling()
+    if sheets.client is not None:
+        sheets.client.session.close()
+    logging.info("Bot stopped")
 
 
 def setup_logging() -> None:
@@ -59,7 +69,14 @@ def main() -> None:
     init_gspread(credentials_file)
 
     logging.info("Бот запущено")
-    asyncio.run(handlers.dp.start_polling(bot))
+
+    async def run() -> None:
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
+        await handlers.dp.start_polling(bot)
+
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
