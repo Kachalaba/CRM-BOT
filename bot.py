@@ -3,31 +3,57 @@ from google.oauth2.service_account import Credentials
 import os
 import random
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Contact
+from aiogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery,
+    Contact,
+)
 from aiogram.filters import Command
 import asyncio
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Настройки бота
-API_TOKEN = "7889385855:AAEEEvKm5LPmaWnQlpXVQ4v3X2Qaj-Z6h9c"
-ADMIN_IDS = [597164575]
+API_TOKEN = os.getenv("API_TOKEN")
+CREDENTIALS_FILE = os.getenv("CREDENTIALS_FILE")
+ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "").split(',') if x.strip()]
+
+if not API_TOKEN:
+    raise EnvironmentError("API_TOKEN is not set")
+if not CREDENTIALS_FILE:
+    raise EnvironmentError("CREDENTIALS_FILE is not set")
+if not ADMIN_IDS:
+    raise EnvironmentError("ADMIN_IDS is not set")
+
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
 RENT_COST_PER_SESSION = 330
-CREDENTIALS_FILE = "crm-bot-439920-d58b98dba80b.json"
-if not os.path.exists(CREDENTIALS_FILE):
-    raise FileNotFoundError(f"Файл {CREDENTIALS_FILE} не знайдено.")
 
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPE)
-client = gspread.authorize(creds)
 
 SPREADSHEET_NAME = "CRM_BOT"
-sheet = client.open(SPREADSHEET_NAME)
-clients_sheet = sheet.worksheet("Клієнти")
-history_sheet = sheet.worksheet("История")
-groups_sheet = sheet.worksheet("Группа")
+
+client = None
+sheet = None
+clients_sheet = None
+history_sheet = None
+groups_sheet = None
+
+def init_gspread() -> None:
+    """Initialize Google Sheets connection."""
+    global client, sheet, clients_sheet, history_sheet, groups_sheet
+    if not os.path.exists(CREDENTIALS_FILE):
+        raise FileNotFoundError(f"Файл {CREDENTIALS_FILE} не знайдено.")
+    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPE)
+    client = gspread.authorize(creds)
+    sheet = client.open(SPREADSHEET_NAME)
+    clients_sheet = sheet.worksheet("Клієнти")
+    history_sheet = sheet.worksheet("История")
+    groups_sheet = sheet.worksheet("Группа")
 
 def get_client_name(row):
     return row.get("Ім’я") or row.get("Імя") or row.get("Имя") or row.get("Имʼя") or "Клієнт"
@@ -186,6 +212,7 @@ async def secret_button(callback: CallbackQuery):
     await callback.message.answer(random.choice(messages))
 
 if __name__ == "__main__":
+    init_gspread()
     print("[LOG] Бот запущено")
     import asyncio
     asyncio.run(dp.start_polling(bot))
