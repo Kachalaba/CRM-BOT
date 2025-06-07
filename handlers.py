@@ -1,10 +1,12 @@
+import logging
 import random
 from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from aiogram.filters import Command
 
-from sheets import clients_sheet, history_sheet, get_client_name
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+
+from sheets import clients_sheet, get_client_name, history_sheet
 
 bot: Bot | None = None
 ADMIN_IDS: list[int] = []
@@ -24,7 +26,7 @@ async def register_by_contact(message: types.Message):
         return
     end_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
     clients_sheet.append_row([user_id, name, 10, end_date, "-"])
-    print(f"[LOG] Зареєстровано нового користувача: {user_id} ({name})")
+    logging.info("Зареєстровано нового користувача: %s (%s)", user_id, name)
     await message.answer("✅ Реєстрація успішна! Вам додано 10 занять на 60 днів.")
 
 
@@ -33,13 +35,31 @@ async def send_welcome(message: types.Message):
     keyboard = [
         [InlineKeyboardButton(text="📊 Мої заняття", callback_data="my_sessions")],
         [InlineKeyboardButton(text="📜 Історія занять", callback_data="view_history")],
-        [InlineKeyboardButton(text="💳 Отримати абонемент", callback_data="request_subscription")],
-        [InlineKeyboardButton(text="✅ Відмітити заняття", callback_data="mark_session")],
+        [
+            InlineKeyboardButton(
+                text="💳 Отримати абонемент", callback_data="request_subscription"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="✅ Відмітити заняття", callback_data="mark_session"
+            )
+        ],
         [InlineKeyboardButton(text="😼 Таємна кнопка", callback_data="secret_button")],
     ]
     if message.from_user.id in ADMIN_IDS:
-        keyboard.insert(0, [InlineKeyboardButton(text="🔧 Панель адміністратора", callback_data="admin_panel")])
-    await message.answer("Вітаю в CRM боті 🐬", reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard))
+        keyboard.insert(
+            0,
+            [
+                InlineKeyboardButton(
+                    text="🔧 Панель адміністратора", callback_data="admin_panel"
+                )
+            ],
+        )
+    await message.answer(
+        "Вітаю в CRM боті 🐬",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+    )
 
 
 @dp.callback_query(lambda c: c.data == "my_sessions")
@@ -48,7 +68,7 @@ async def my_sessions(callback: CallbackQuery):
     records = clients_sheet.get_all_records()
     for row in records:
         if str(row["ID"]) == user_id:
-            print(f"[LOG] Перевірка занять для {user_id}")
+            logging.info("Перевірка занять для %s", user_id)
             await callback.message.answer(
                 f"У вас залишилось {row['К-сть тренувань']} занять. Термін дії: {row['Кінцева дата']}"
             )
@@ -69,13 +89,22 @@ async def mark_session(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Підтвердити", callback_data=f"approve_deduction:{callback.from_user.id}"),
-                InlineKeyboardButton(text="❌ Скасувати", callback_data="cancel_request"),
+                InlineKeyboardButton(
+                    text="✅ Підтвердити",
+                    callback_data=f"approve_deduction:{callback.from_user.id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌ Скасувати", callback_data="cancel_request"
+                ),
             ]
         ]
     )
-    print(f"[LOG] Отримано запит на списання заняття від {callback.from_user.id}")
-    await bot.send_message(ADMIN_IDS[0], f"Запит на списання заняття від {callback.from_user.id}", reply_markup=keyboard)
+    logging.info("Отримано запит на списання заняття від %s", callback.from_user.id)
+    await bot.send_message(
+        ADMIN_IDS[0],
+        f"Запит на списання заняття від {callback.from_user.id}",
+        reply_markup=keyboard,
+    )
     await callback.message.answer("✅ Запит надіслано адміну")
 
 
@@ -92,10 +121,18 @@ async def approve_deduction(callback: CallbackQuery):
         if str(row["ID"]) == user_id:
             new_sessions = max(0, int(row["К-сть тренувань"]) - 1)
             clients_sheet.update_cell(idx + 2, 3, new_sessions)
-            history_sheet.append_row([user_id, datetime.now().strftime("%Y-%m-%d %H:%M"), "Списано 1 заняття"])
+            history_sheet.append_row(
+                [
+                    user_id,
+                    datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Списано 1 заняття",
+                ]
+            )
             name = get_client_name(row)
-            print(f"[LOG] Списано 1 заняття для {user_id}, залишок: {new_sessions}")
-            await bot.send_message(user_id, f"❗ Списано 1 заняття. Залишок: {new_sessions}")
+            logging.info("Списано 1 заняття для %s, залишок: %s", user_id, new_sessions)
+            await bot.send_message(
+                user_id, f"❗ Списано 1 заняття. Залишок: {new_sessions}"
+            )
             await callback.message.answer(f"Списано для {name} (ID: {user_id})")
             return
     await callback.message.answer("Клієнт не знайдений")
@@ -106,13 +143,22 @@ async def request_subscription(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Дати 10 занять", callback_data=f"approve_subscription:{callback.from_user.id}"),
-                InlineKeyboardButton(text="❌ Відмовити", callback_data="deny_subscription"),
+                InlineKeyboardButton(
+                    text="✅ Дати 10 занять",
+                    callback_data=f"approve_subscription:{callback.from_user.id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌ Відмовити", callback_data="deny_subscription"
+                ),
             ]
         ]
     )
-    print(f"[LOG] Клієнт {callback.from_user.id} запитав абонемент")
-    await bot.send_message(ADMIN_IDS[0], f"Запит на новий абонемент від {callback.from_user.id}", reply_markup=keyboard)
+    logging.info("Клієнт %s запитав абонемент", callback.from_user.id)
+    await bot.send_message(
+        ADMIN_IDS[0],
+        f"Запит на новий абонемент від {callback.from_user.id}",
+        reply_markup=keyboard,
+    )
     await callback.message.answer("💳 Запит надіслано адміну")
 
 
@@ -130,9 +176,17 @@ async def approve_subscription(callback: CallbackQuery):
             clients_sheet.update_cell(idx + 2, 3, 10)
             new_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
             clients_sheet.update_cell(idx + 2, 4, new_date)
-            history_sheet.append_row([user_id, datetime.now().strftime("%Y-%m-%d %H:%M"), "Додано 10 занять"])
-            print(f"[LOG] Додано 10 занять користувачу {user_id}")
-            await bot.send_message(user_id, "🎉 Вам видано новий абонемент на 10 занять (60 днів)")
+            history_sheet.append_row(
+                [
+                    user_id,
+                    datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Додано 10 занять",
+                ]
+            )
+            logging.info("Додано 10 занять користувачу %s", user_id)
+            await bot.send_message(
+                user_id, "🎉 Вам видано новий абонемент на 10 занять (60 днів)"
+            )
             await callback.message.answer(f"Видано новий абонемент для ID {user_id}")
             return
     await callback.message.answer("Клієнт не знайдений")
@@ -150,16 +204,26 @@ async def admin_panel(callback: CallbackQuery):
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="➕ Додати", callback_data=f"add_session:{user_id}"),
-                    InlineKeyboardButton(text="➖ Списати", callback_data=f"approve_deduction:{user_id}"),
+                    InlineKeyboardButton(
+                        text="➕ Додати", callback_data=f"add_session:{user_id}"
+                    ),
+                    InlineKeyboardButton(
+                        text="➖ Списати", callback_data=f"approve_deduction:{user_id}"
+                    ),
                 ],
-                [InlineKeyboardButton(text="📜 Історія", callback_data=f"history:{user_id}")],
+                [
+                    InlineKeyboardButton(
+                        text="📜 Історія", callback_data=f"history:{user_id}"
+                    )
+                ],
             ]
         )
         await callback.message.answer(
             f"👤 {name} (ID: {user_id})\nЗалишок: {sessions}", reply_markup=keyboard
         )
-    await callback.message.answer(f"💰 Сума, яку потрібно тримати для оренди: {reserve_total} грн")
+    await callback.message.answer(
+        f"💰 Сума, яку потрібно тримати для оренди: {reserve_total} грн"
+    )
 
 
 @dp.callback_query(lambda c: c.data.startswith("add_session:"))
@@ -172,8 +236,12 @@ async def add_session(callback: CallbackQuery):
             clients_sheet.update_cell(idx + 2, 3, new_sessions)
             if not row.get("Ім’я"):
                 clients_sheet.update_cell(idx + 2, 2, "Клієнт")
-            history_sheet.append_row([user_id, datetime.now().strftime("%Y-%m-%d %H:%M"), "Додано 1 заняття"])
-            await bot.send_message(user_id, f"➕ Вам додано 1 заняття. Тепер у вас {new_sessions}")
+            history_sheet.append_row(
+                [user_id, datetime.now().strftime("%Y-%m-%d %H:%M"), "Додано 1 заняття"]
+            )
+            await bot.send_message(
+                user_id, f"➕ Вам додано 1 заняття. Тепер у вас {new_sessions}"
+            )
             await callback.message.answer("Заняття додано")
             return
 
@@ -195,4 +263,3 @@ async def secret_button(callback: CallbackQuery):
         "🐾 Секретів тут нема, тільки хвости.",
     ]
     await callback.message.answer(random.choice(messages))
-
