@@ -42,4 +42,3 @@ pytest -q
 3. `pre-commit run --all-files` (runs black, isort and flake8)
 4. Follow commit message style `<scope>: <action>`
 5. Push to a branch named `codex/<feature>-<date>`
-
