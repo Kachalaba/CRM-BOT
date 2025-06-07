@@ -12,6 +12,8 @@ from sheets import clients_sheet, get_client_name, history_sheet
 bot: Bot | None = None
 ADMIN_IDS: list[int] = []
 
+STATS_CACHE: dict[str, tuple[float, int]] = {}
+
 RENT_COST_PER_SESSION = 330
 
 dp = Dispatcher()
@@ -70,6 +72,7 @@ async def send_help(message: types.Message) -> None:
         "/start - start bot",
         "/help - list available commands",
         "/ping - check bot latency",
+        "/stats - show remaining sessions",
     ]
     await message.answer("\n".join(commands))
 
@@ -81,6 +84,26 @@ async def ping(message: types.Message) -> None:
     sent = await message.answer("pong")
     latency = int((time.monotonic() - start) * 1000)
     await sent.edit_text(f"pong {latency} ms")
+
+
+@dp.message(Command(commands=["stats"]))
+async def stats(message: types.Message) -> None:
+    """Show remaining sessions for the user with caching."""
+    now = time.monotonic()
+    user_id = str(message.from_user.id)
+    cached = STATS_CACHE.get(user_id)
+    if cached and now - cached[0] < 30:
+        await message.answer(f"У тебя {cached[1]} оставшихся")
+        return
+
+    records = clients_sheet.get_all_records()
+    for row in records:
+        if str(row["ID"]) == user_id:
+            count = int(row["К-сть тренувань"])
+            STATS_CACHE[user_id] = (now, count)
+            await message.answer(f"У тебя {count} оставшихся")
+            return
+    await message.answer("❗ Ви ще не зареєстровані.")
 
 
 @dp.callback_query(lambda c: c.data == "my_sessions")

@@ -2,6 +2,11 @@
 
 Simple Telegram bot for CRM integration.
 
+## Commands
+
+- `/ping` - check bot latency
+- `/stats` - show remaining sessions (cached for 30s)
+
 ## Running with Docker
 
 Build the image and run:
