@@ -45,6 +45,8 @@ def test_main_signal_shutdown(monkeypatch):
     monkeypatch.setenv("CREDENTIALS_FILE", "c")
     monkeypatch.setenv("ADMIN_IDS", "1")
 
+    monkeypatch.setattr(main.os.path, "exists", lambda path: True)
+
     monkeypatch.setattr(main, "init_gspread", lambda _: None)
     monkeypatch.setattr(handlers.dp, "start_polling", AsyncMock())
 
