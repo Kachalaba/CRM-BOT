@@ -16,3 +16,7 @@ docker run -it --env-file .env ghcr.io/<your-github-username>/crm-bot:latest
 ```
 
 Replace `.env` with your environment file.
+
+## Staging
+
+Test the latest changes here: [Staging Bot](https://t.me/crm_bot_staging).
