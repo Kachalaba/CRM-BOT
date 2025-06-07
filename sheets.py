@@ -1,8 +1,12 @@
 import os
+
 import gspread
 from google.oauth2.service_account import Credentials
 
-SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+SCOPE = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive",
+]
 SPREADSHEET_NAME = "CRM_BOT"
 
 client = None
@@ -10,6 +14,7 @@ sheet = None
 clients_sheet = None
 history_sheet = None
 groups_sheet = None
+
 
 def init_gspread(credentials_file: str) -> None:
     """Initialize Google Sheets connection."""
@@ -22,6 +27,7 @@ def init_gspread(credentials_file: str) -> None:
     clients_sheet = sheet.worksheet("Клієнти")
     history_sheet = sheet.worksheet("История")
     groups_sheet = sheet.worksheet("Группа")
+
 
 def get_client_name(row):
     return (
