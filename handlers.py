@@ -1,5 +1,6 @@
 import logging
 import random
+import time
 from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher, types
@@ -60,6 +61,26 @@ async def send_welcome(message: types.Message):
         "Вітаю в CRM боті 🐬",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
     )
+
+
+@dp.message(Command(commands=["help"]))
+async def send_help(message: types.Message) -> None:
+    """Send available bot commands."""
+    commands = [
+        "/start - start bot",
+        "/help - list available commands",
+        "/ping - check bot latency",
+    ]
+    await message.answer("\n".join(commands))
+
+
+@dp.message(Command(commands=["ping"]))
+async def ping(message: types.Message) -> None:
+    """Reply with pong and response time."""
+    start = time.monotonic()
+    sent = await message.answer("pong")
+    latency = int((time.monotonic() - start) * 1000)
+    await sent.edit_text(f"pong {latency} ms")
 
 
 @dp.callback_query(lambda c: c.data == "my_sessions")
