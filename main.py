@@ -56,8 +56,11 @@ def main() -> None:
 
     if not api_token:
         raise EnvironmentError("API_TOKEN is not set")
-    if not credentials_file:
-        raise EnvironmentError("CREDENTIALS_FILE is not set")
+    if not credentials_file or not os.path.exists(credentials_file):
+        logging.warning(
+            "⚠️  creds.json not found – положи JSON и пропиши CREDENTIALS_FILE"
+        )
+        raise SystemExit(1)
     if not admin_ids:
         raise EnvironmentError("ADMIN_IDS is not set")
 
