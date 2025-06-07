@@ -8,6 +8,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from sheets import clients_sheet, get_client_name, history_sheet
+from utils.i18n import t
 
 bot: Bot | None = None
 ADMIN_IDS: list[int] = []
@@ -25,12 +26,17 @@ async def register_by_contact(message: types.Message):
     name = message.contact.first_name or "Клієнт"
     records = clients_sheet.get_all_records()
     if any(str(row["ID"]) == user_id for row in records):
-        await message.answer("❗ Ви вже зареєстровані.")
+        await message.answer(t("❗ Ви вже зареєстровані.", user=message.from_user))
         return
     end_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
     clients_sheet.append_row([user_id, name, 10, end_date, "-"])
     logging.info("Зареєстровано нового користувача: %s (%s)", user_id, name)
-    await message.answer("✅ Реєстрація успішна! Вам додано 10 занять на 60 днів.")
+    await message.answer(
+        t(
+            "✅ Реєстрація успішна! Вам додано 10 занять на 60 днів.",
+            user=message.from_user,
+        )
+    )
 
 
 @dp.message(Command(commands=["start"]))
@@ -60,28 +66,23 @@ async def send_welcome(message: types.Message):
             ],
         )
     await message.answer(
-        "Вітаю в CRM боті 🐬",
+        t("/start", user=message.from_user),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
     )
+    await message.answer(t("/help", user=message.from_user))
 
 
 @dp.message(Command(commands=["help"]))
 async def send_help(message: types.Message) -> None:
     """Send available bot commands."""
-    commands = [
-        "/start - start bot",
-        "/help - list available commands",
-        "/ping - check bot latency",
-        "/stats - show remaining sessions",
-    ]
-    await message.answer("\n".join(commands))
+    await message.answer(t("/help", user=message.from_user))
 
 
 @dp.message(Command(commands=["ping"]))
 async def ping(message: types.Message) -> None:
     """Reply with pong and response time."""
     start = time.monotonic()
-    sent = await message.answer("pong")
+    sent = await message.answer(t("pong", user=message.from_user))
     latency = int((time.monotonic() - start) * 1000)
     await sent.edit_text(f"pong {latency} ms")
 
@@ -93,7 +94,9 @@ async def stats(message: types.Message) -> None:
     user_id = str(message.from_user.id)
     cached = STATS_CACHE.get(user_id)
     if cached and now - cached[0] < 30:
-        await message.answer(f"У тебя {cached[1]} оставшихся")
+        await message.answer(
+            t("У тебя {count} оставшихся", user=message.from_user, count=cached[1])
+        )
         return
 
     records = clients_sheet.get_all_records()
@@ -101,9 +104,11 @@ async def stats(message: types.Message) -> None:
         if str(row["ID"]) == user_id:
             count = int(row["К-сть тренувань"])
             STATS_CACHE[user_id] = (now, count)
-            await message.answer(f"У тебя {count} оставшихся")
+            await message.answer(
+                t("У тебя {count} оставшихся", user=message.from_user, count=count)
+            )
             return
-    await message.answer("❗ Ви ще не зареєстровані.")
+    await message.answer(t("❗ Ви ще не зареєстровані.", user=message.from_user))
 
 
 @dp.callback_query(lambda c: c.data == "my_sessions")
@@ -114,10 +119,17 @@ async def my_sessions(callback: CallbackQuery):
         if str(row["ID"]) == user_id:
             logging.info("Перевірка занять для %s", user_id)
             await callback.message.answer(
-                f"У вас залишилось {row['К-сть тренувань']} занять. Термін дії: {row['Кінцева дата']}"
+                t(
+                    "У вас залишилось {count} занять. Термін дії: {date}",
+                    user=callback.from_user,
+                    count=row["К-сть тренувань"],
+                    date=row["Кінцева дата"],
+                )
             )
             return
-    await callback.message.answer("❗ Ви ще не зареєстровані.")
+    await callback.message.answer(
+        t("❗ Ви ще не зареєстровані.", user=callback.from_user)
+    )
 
 
 @dp.callback_query(lambda c: c.data == "view_history")
@@ -125,7 +137,9 @@ async def view_history(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
     rows = history_sheet.get_all_values()
     lines = [f"{row[1]} – {row[2]}" for row in rows if row[0] == user_id]
-    await callback.message.answer("\n".join(lines) if lines else "Історія пуста.")
+    await callback.message.answer(
+        "\n".join(lines) if lines else t("Історія пуста.", user=callback.from_user)
+    )
 
 
 @dp.callback_query(lambda c: c.data == "mark_session")
@@ -149,12 +163,14 @@ async def mark_session(callback: CallbackQuery):
         f"Запит на списання заняття від {callback.from_user.id}",
         reply_markup=keyboard,
     )
-    await callback.message.answer("✅ Запит надіслано адміну")
+    await callback.message.answer(
+        t("✅ Запит надіслано адміну", user=callback.from_user)
+    )
 
 
 @dp.callback_query(lambda c: c.data == "cancel_request")
 async def cancel_request(callback: CallbackQuery):
-    await callback.message.edit_text("Запит скасовано.")
+    await callback.message.edit_text(t("Запит скасовано.", user=callback.from_user))
 
 
 @dp.callback_query(lambda c: c.data.startswith("approve_deduction:"))
@@ -175,11 +191,23 @@ async def approve_deduction(callback: CallbackQuery):
             name = get_client_name(row)
             logging.info("Списано 1 заняття для %s, залишок: %s", user_id, new_sessions)
             await bot.send_message(
-                user_id, f"❗ Списано 1 заняття. Залишок: {new_sessions}"
+                user_id,
+                t(
+                    "❗ Списано 1 заняття. Залишок: {count}",
+                    user=callback.from_user,
+                    count=new_sessions,
+                ),
             )
-            await callback.message.answer(f"Списано для {name} (ID: {user_id})")
+            await callback.message.answer(
+                t(
+                    "Списано для {name} (ID: {user_id})",
+                    user=callback.from_user,
+                    name=name,
+                    user_id=user_id,
+                )
+            )
             return
-    await callback.message.answer("Клієнт не знайдений")
+    await callback.message.answer(t("Клієнт не знайдений", user=callback.from_user))
 
 
 @dp.callback_query(lambda c: c.data == "request_subscription")
@@ -203,12 +231,16 @@ async def request_subscription(callback: CallbackQuery):
         f"Запит на новий абонемент від {callback.from_user.id}",
         reply_markup=keyboard,
     )
-    await callback.message.answer("💳 Запит надіслано адміну")
+    await callback.message.answer(
+        t("💳 Запит надіслано адміну", user=callback.from_user)
+    )
 
 
 @dp.callback_query(lambda c: c.data == "deny_subscription")
 async def deny_subscription(callback: CallbackQuery):
-    await callback.message.edit_text("❌ Запит на абонемент відхилено.")
+    await callback.message.edit_text(
+        t("❌ Запит на абонемент відхилено.", user=callback.from_user)
+    )
 
 
 @dp.callback_query(lambda c: c.data.startswith("approve_subscription:"))
@@ -229,11 +261,21 @@ async def approve_subscription(callback: CallbackQuery):
             )
             logging.info("Додано 10 занять користувачу %s", user_id)
             await bot.send_message(
-                user_id, "🎉 Вам видано новий абонемент на 10 занять (60 днів)"
+                user_id,
+                t(
+                    "🎉 Вам видано новий абонемент на 10 занять (60 днів)",
+                    user=callback.from_user,
+                ),
             )
-            await callback.message.answer(f"Видано новий абонемент для ID {user_id}")
+            await callback.message.answer(
+                t(
+                    "Видано новий абонемент для ID {user_id}",
+                    user=callback.from_user,
+                    user_id=user_id,
+                )
+            )
             return
-    await callback.message.answer("Клієнт не знайдений")
+    await callback.message.answer(t("Клієнт не знайдений", user=callback.from_user))
 
 
 @dp.callback_query(lambda c: c.data == "admin_panel")
@@ -263,10 +305,21 @@ async def admin_panel(callback: CallbackQuery):
             ]
         )
         await callback.message.answer(
-            f"👤 {name} (ID: {user_id})\nЗалишок: {sessions}", reply_markup=keyboard
+            t(
+                "👤 {name} (ID: {user_id})\nЗалишок: {sessions}",
+                user=callback.from_user,
+                name=name,
+                user_id=user_id,
+                sessions=sessions,
+            ),
+            reply_markup=keyboard,
         )
     await callback.message.answer(
-        f"💰 Сума, яку потрібно тримати для оренди: {reserve_total} грн"
+        t(
+            "💰 Сума, яку потрібно тримати для оренди: {amount} грн",
+            user=callback.from_user,
+            amount=reserve_total,
+        )
     )
 
 
@@ -284,9 +337,14 @@ async def add_session(callback: CallbackQuery):
                 [user_id, datetime.now().strftime("%Y-%m-%d %H:%M"), "Додано 1 заняття"]
             )
             await bot.send_message(
-                user_id, f"➕ Вам додано 1 заняття. Тепер у вас {new_sessions}"
+                user_id,
+                t(
+                    "➕ Вам додано 1 заняття. Тепер у вас {count}",
+                    user=callback.from_user,
+                    count=new_sessions,
+                ),
             )
-            await callback.message.answer("Заняття додано")
+            await callback.message.answer(t("Заняття додано", user=callback.from_user))
             return
 
 
@@ -295,7 +353,9 @@ async def user_history(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     rows = history_sheet.get_all_values()
     lines = [f"{row[1]} – {row[2]}" for row in rows if row[0] == user_id]
-    await callback.message.answer("\n".join(lines) if lines else "Історія пуста.")
+    await callback.message.answer(
+        "\n".join(lines) if lines else t("Історія пуста.", user=callback.from_user)
+    )
 
 
 @dp.callback_query(lambda c: c.data == "secret_button")
@@ -306,4 +366,10 @@ async def secret_button(callback: CallbackQuery):
         "💥 А ти справді думав, що тут щось є?",
         "🐾 Секретів тут нема, тільки хвости.",
     ]
-    await callback.message.answer(random.choice(messages))
+    await callback.message.answer(t(random.choice(messages), user=callback.from_user))
+
+
+@dp.message()
+async def unknown_message(message: types.Message) -> None:
+    """Handle unknown commands."""
+    await message.answer(t("unknown", user=message.from_user))
