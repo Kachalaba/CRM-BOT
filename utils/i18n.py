@@ -27,9 +27,17 @@ def get_locale(user_id: int | None = None, lang_code: str | None = None) -> str:
     return DEFAULT_LOCALE
 
 
-def t(key: str, *, user: types.User | None = None, locale: str | None = None, **kwargs: Any) -> str:
+def t(
+    key: str,
+    *,
+    user: types.User | None = None,
+    locale: str | None = None,
+    **kwargs: Any,
+) -> str:
     """Translate message key for the given user or locale."""
-    loc = locale or get_locale(getattr(user, "id", None), getattr(user, "language_code", None))
+    loc = locale or get_locale(
+        getattr(user, "id", None), getattr(user, "language_code", None)
+    )
     data = _LOCALES.get(loc, _LOCALES[DEFAULT_LOCALE])
     text = data.get(key, key)
     if kwargs:
