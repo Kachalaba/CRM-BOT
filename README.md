@@ -20,3 +20,7 @@ Replace `.env` with your environment file.
 ## Staging
 
 Test the latest changes here: [Staging Bot](https://t.me/crm_bot_staging).
+
+## Мова
+
+Файли локалей зберігаються у `locales/`. Щоб додати нову мову, створіть JSON-файл з кодом мови та перекладами ключів. Бот автоматично визначає мову користувача з налаштувань Telegram.
