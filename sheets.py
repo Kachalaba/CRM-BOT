@@ -3,13 +3,13 @@ import os
 
 import gspread
 from google.oauth2.service_account import Credentials
-from gspread.exceptions import APIError
+from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
 ]
-SPREADSHEET_NAME = "CRM_BOT"
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "spreadsheet_id")
 
 client = None
 sheet = None
@@ -52,10 +52,16 @@ def init_gspread(credentials_file: str) -> None:
     creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPE)
     try:
         client = gspread.authorize(creds)
-        sheet = client.open(SPREADSHEET_NAME)
+        sheet = client.open_by_key(SPREADSHEET_ID)
         clients_sheet = SafeWorksheet(sheet.worksheet("Клієнти"))
         history_sheet = SafeWorksheet(sheet.worksheet("История"))
         groups_sheet = SafeWorksheet(sheet.worksheet("Группа"))
+    except SpreadsheetNotFound as err:
+        logging.error("Spreadsheet not found: %s", err, exc_info=True)
+        raise RuntimeError("❗ Таблицю не знайдено.") from err
+    except WorksheetNotFound as err:
+        logging.error("Worksheet not found: %s", err, exc_info=True)
+        raise RuntimeError("❗ Лист не знайдено.") from err
     except APIError as err:
         if getattr(err.response, "status", None) in {403, 429}:
             logging.warning("Sheets quota/permission error: %s", err)

@@ -30,7 +30,7 @@ def test_quota_error(mock_auth, mock_creds, mock_exists, caplog):
     mock_ws.get_all_records.side_effect = make_error(429)
     mock_sheet = MagicMock()
     mock_sheet.worksheet.return_value = mock_ws
-    mock_client = MagicMock(open=MagicMock(return_value=mock_sheet))
+    mock_client = MagicMock(open_by_key=MagicMock(return_value=mock_sheet))
     mock_auth.return_value = mock_client
     mock_creds.from_service_account_file.return_value = "creds"
 
@@ -50,7 +50,7 @@ def test_unknown_error(mock_auth, mock_creds, mock_exists, caplog):
     mock_ws.get_all_records.side_effect = make_error(500)
     mock_sheet = MagicMock()
     mock_sheet.worksheet.return_value = mock_ws
-    mock_client = MagicMock(open=MagicMock(return_value=mock_sheet))
+    mock_client = MagicMock(open_by_key=MagicMock(return_value=mock_sheet))
     mock_auth.return_value = mock_client
     mock_creds.from_service_account_file.return_value = "creds"
 
