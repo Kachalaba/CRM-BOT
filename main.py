@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import platform
 import signal
 from logging.handlers import RotatingFileHandler
 
@@ -75,8 +76,9 @@ def main() -> None:
 
     async def run() -> None:
         loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
+        if platform.system() != "Windows":
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
         await handlers.dp.start_polling(bot)
 
     asyncio.run(run())
