@@ -44,6 +44,18 @@ class SafeWorksheet:
         return wrapper
 
 
+def safe_worksheet(sheet, *candidates):
+    """Return the first existing worksheet from candidates or raise."""
+    for name in candidates:
+        try:
+            ws = sheet.worksheet(name)
+            return SafeWorksheet(ws)
+        except WorksheetNotFound:
+            continue
+    logging.error("Worksheet not found: %s", ", ".join(candidates))
+    raise WorksheetNotFound(f"No worksheet from candidates: {', '.join(candidates)}")
+
+
 def validate_spreadsheet(spreadsheet_id: str) -> None:
     """Check that the spreadsheet exists and log the result."""
     try:
@@ -68,9 +80,9 @@ def init_gspread(credentials_file: str) -> None:
         client = gspread.authorize(creds)
         validate_spreadsheet(SPREADSHEET_ID)
         sheet = client.open_by_key(SPREADSHEET_ID)
-        clients_sheet = SafeWorksheet(sheet.worksheet("Клієнти"))
-        history_sheet = SafeWorksheet(sheet.worksheet("История"))
-        groups_sheet = SafeWorksheet(sheet.worksheet("Группа"))
+        clients_sheet = safe_worksheet(sheet, "Клиенты", "Клієнти")
+        history_sheet = safe_worksheet(sheet, "История")
+        groups_sheet = safe_worksheet(sheet, "Группа")
     except SpreadsheetNotFound as err:
         logging.error("Spreadsheet not found: %s", err, exc_info=True)
         raise RuntimeError("❗ Таблицю не знайдено.") from err
