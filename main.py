@@ -8,9 +8,11 @@ from logging.handlers import RotatingFileHandler
 from aiogram import Bot
 from dotenv import load_dotenv
 
-import handlers
-import sheets
-from sheets import init_gspread
+load_dotenv()
+
+import handlers  # noqa: E402
+import sheets  # noqa: E402
+from sheets import init_gspread  # noqa: E402
 
 bot: Bot | None = None
 
@@ -47,7 +49,6 @@ def setup_logging() -> None:
 
 def main() -> None:
     global bot
-    load_dotenv()
 
     setup_logging()
 
