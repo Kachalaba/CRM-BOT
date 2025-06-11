@@ -44,6 +44,20 @@ class SafeWorksheet:
         return wrapper
 
 
+def validate_spreadsheet(spreadsheet_id: str) -> None:
+    """Check that the spreadsheet exists and log the result."""
+    try:
+        client.open_by_key(spreadsheet_id)
+    except APIError as err:
+        if getattr(err.response, "status", None) == 404:
+            logging.error("\ud83d\udeab Spreadsheet ID not found: %s", spreadsheet_id)
+            logging.error(
+                "https://docs.google.com/spreadsheets/d/%s/edit", spreadsheet_id
+            )
+        raise
+    logging.info("\u2705 Spreadsheet ID OK")
+
+
 def init_gspread(credentials_file: str) -> None:
     """Initialize Google Sheets connection."""
     global client, sheet, clients_sheet, history_sheet, groups_sheet
@@ -52,6 +66,7 @@ def init_gspread(credentials_file: str) -> None:
     creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPE)
     try:
         client = gspread.authorize(creds)
+        validate_spreadsheet(SPREADSHEET_ID)
         sheet = client.open_by_key(SPREADSHEET_ID)
         clients_sheet = SafeWorksheet(sheet.worksheet("Клієнти"))
         history_sheet = SafeWorksheet(sheet.worksheet("История"))
