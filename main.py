@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 import handlers  # noqa: E402
 from sheets import init_gspread  # noqa: E402
 
@@ -56,7 +58,7 @@ def main() -> None:
     if not api_token:
         raise EnvironmentError("API_TOKEN is not set")
     if not credentials_file or not os.path.exists(credentials_file):
-        logging.warning(
+        logger.warning(
             "⚠️  creds.json not found – положи JSON и пропиши CREDENTIALS_FILE"
         )
         raise SystemExit(1)
@@ -68,7 +70,7 @@ def main() -> None:
     handlers.bot = bot
     handlers.ADMIN_IDS = admin_ids
 
-    logging.info("Бот запущено")
+    logger.info("Бот запущено")
 
     async def run() -> None:
         await init_gspread(credentials_file)
