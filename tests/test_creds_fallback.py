@@ -17,7 +17,7 @@ def test_missing_credentials(monkeypatch, capsys):
 
     called = {}
 
-    def fake_init(_):
+    async def fake_init(_):
         called["init"] = True
 
     monkeypatch.setattr(main, "init_gspread", fake_init)

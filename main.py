@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import handlers  # noqa: E402
-import sheets  # noqa: E402
 from sheets import init_gspread  # noqa: E402
 
 bot: Bot | None = None
@@ -20,8 +19,6 @@ bot: Bot | None = None
 async def shutdown() -> None:
     """Gracefully stop polling and close gspread session."""
     await handlers.dp.stop_polling()
-    if sheets.client is not None:
-        sheets.client.session.close()
     logging.info("Bot stopped")
 
 
@@ -71,11 +68,10 @@ def main() -> None:
     handlers.bot = bot
     handlers.ADMIN_IDS = admin_ids
 
-    init_gspread(credentials_file)
-
     logging.info("Бот запущено")
 
     async def run() -> None:
+        await init_gspread(credentials_file)
         loop = asyncio.get_running_loop()
         if platform.system() != "Windows":
             for sig in (signal.SIGINT, signal.SIGTERM):
