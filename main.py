@@ -52,17 +52,11 @@ def main() -> None:
     setup_logging()
 
     api_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    credentials_file = os.getenv("GOOGLE_CREDENTIALS_JSON")
     admin_id = os.getenv("ADMIN_ID")
     sheet_id = os.getenv("GOOGLE_SHEET_ID")
 
     if not api_token:
         raise EnvironmentError("TELEGRAM_BOT_TOKEN is not set")
-    if not credentials_file or not os.path.exists(credentials_file):
-        logger.warning(
-            "⚠️  creds.json not found – положи JSON и пропиши GOOGLE_CREDENTIALS_JSON"
-        )
-        raise SystemExit(1)
     if not admin_id:
         raise EnvironmentError("ADMIN_ID is not set")
     if not sheet_id:
@@ -79,7 +73,7 @@ def main() -> None:
     handlers.dp.include_router(handlers.router)
 
     async def run() -> None:
-        await init_gspread(credentials_file, sheet_id)
+        await init_gspread(sheet_id)
         loop = asyncio.get_running_loop()
         if platform.system() != "Windows":
             for sig in (signal.SIGINT, signal.SIGTERM):

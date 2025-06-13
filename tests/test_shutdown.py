@@ -44,7 +44,8 @@ def test_main_signal_shutdown(monkeypatch):
     monkeypatch.setenv("ADMIN_ID", "1")
     monkeypatch.setenv("GOOGLE_SHEET_ID", "sheet")
 
-    monkeypatch.setattr(main.os.path, "exists", lambda path: True)
+    handlers.dp = handlers.Dispatcher()
+    handlers.router = handlers.Router()
 
     async def fake_init(*_):
         return None
