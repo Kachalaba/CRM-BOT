@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from gspread.exceptions import APIError
@@ -24,39 +25,41 @@ def make_error(status: int) -> APIError:
 
 @patch("sheets.os.path.exists", return_value=True)
 @patch("sheets.Credentials")
-@patch("sheets.gspread.authorize")
-def test_quota_error(mock_auth, mock_creds, mock_exists, caplog):
+@patch("sheets.AsyncioGspreadClientManager")
+def test_quota_error(mock_mgr, mock_creds, mock_exists, caplog):
     mock_ws = MagicMock()
-    mock_ws.get_all_records.side_effect = make_error(429)
+    mock_ws.get_all_records = AsyncMock(side_effect=make_error(429))
     mock_sheet = MagicMock()
-    mock_sheet.worksheet.return_value = mock_ws
-    mock_client = MagicMock(open_by_key=MagicMock(return_value=mock_sheet))
-    mock_auth.return_value = mock_client
+    mock_sheet.worksheet = AsyncMock(return_value=mock_ws)
+    mock_client = MagicMock()
+    mock_client.open_by_key = AsyncMock(return_value=mock_sheet)
+    mock_mgr.return_value.authorize = AsyncMock(return_value=mock_client)
     mock_creds.from_service_account_file.return_value = "creds"
 
-    sheets.init_gspread("creds.json")
+    asyncio.run(sheets.init_gspread("creds.json"))
 
     with caplog.at_level(logging.WARNING):
         with pytest.raises(RuntimeError):
-            sheets.clients_sheet.get_all_records()
+            asyncio.run(sheets.clients_sheet.get_all_records())
     assert any(rec.levelno == logging.WARNING for rec in caplog.records)
 
 
 @patch("sheets.os.path.exists", return_value=True)
 @patch("sheets.Credentials")
-@patch("sheets.gspread.authorize")
-def test_unknown_error(mock_auth, mock_creds, mock_exists, caplog):
+@patch("sheets.AsyncioGspreadClientManager")
+def test_unknown_error(mock_mgr, mock_creds, mock_exists, caplog):
     mock_ws = MagicMock()
-    mock_ws.get_all_records.side_effect = make_error(500)
+    mock_ws.get_all_records = AsyncMock(side_effect=make_error(500))
     mock_sheet = MagicMock()
-    mock_sheet.worksheet.return_value = mock_ws
-    mock_client = MagicMock(open_by_key=MagicMock(return_value=mock_sheet))
-    mock_auth.return_value = mock_client
+    mock_sheet.worksheet = AsyncMock(return_value=mock_ws)
+    mock_client = MagicMock()
+    mock_client.open_by_key = AsyncMock(return_value=mock_sheet)
+    mock_mgr.return_value.authorize = AsyncMock(return_value=mock_client)
     mock_creds.from_service_account_file.return_value = "creds"
 
-    sheets.init_gspread("creds.json")
+    asyncio.run(sheets.init_gspread("creds.json"))
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(APIError):
-            sheets.clients_sheet.get_all_records()
+            asyncio.run(sheets.clients_sheet.get_all_records())
     assert any(rec.levelno == logging.ERROR for rec in caplog.records)

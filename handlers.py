@@ -3,7 +3,7 @@ import random
 import time
 from datetime import datetime, timedelta
 
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -18,9 +18,11 @@ STATS_CACHE: dict[str, tuple[float, int]] = {}
 RENT_COST_PER_SESSION = 330
 
 dp = Dispatcher()
+router = Router()
+dp.include_router(router)
 
 
-@dp.message(lambda message: message.contact)
+@router.message(lambda message: message.contact)
 async def register_by_contact(message: types.Message):
     user_id = str(message.contact.user_id)
     name = message.contact.first_name or "Клієнт"
@@ -39,7 +41,7 @@ async def register_by_contact(message: types.Message):
     )
 
 
-@dp.message(Command(commands=["start"]))
+@router.message(Command(commands=["start"]))
 async def send_welcome(message: types.Message):
     keyboard = [
         [InlineKeyboardButton(text="📊 Мої заняття", callback_data="my_sessions")],
@@ -72,13 +74,13 @@ async def send_welcome(message: types.Message):
     await message.answer(t("/help", user=message.from_user))
 
 
-@dp.message(Command(commands=["help"]))
+@router.message(Command(commands=["help"]))
 async def send_help(message: types.Message) -> None:
     """Send available bot commands."""
     await message.answer(t("/help", user=message.from_user))
 
 
-@dp.message(Command(commands=["ping"]))
+@router.message(Command(commands=["ping"]))
 async def ping(message: types.Message) -> None:
     """Reply with pong and response time."""
     start = time.monotonic()
@@ -87,7 +89,7 @@ async def ping(message: types.Message) -> None:
     await sent.edit_text(f"pong {latency} ms")
 
 
-@dp.message(Command(commands=["stats"]))
+@router.message(Command(commands=["stats"]))
 async def stats(message: types.Message) -> None:
     """Show remaining sessions for the user with caching."""
     now = time.monotonic()
@@ -111,7 +113,7 @@ async def stats(message: types.Message) -> None:
     await message.answer(t("❗ Ви ще не зареєстровані.", user=message.from_user))
 
 
-@dp.callback_query(lambda c: c.data == "my_sessions")
+@router.callback_query(lambda c: c.data == "my_sessions")
 async def my_sessions(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
     records = clients_sheet.get_all_records()
@@ -132,7 +134,7 @@ async def my_sessions(callback: CallbackQuery):
     )
 
 
-@dp.callback_query(lambda c: c.data == "view_history")
+@router.callback_query(lambda c: c.data == "view_history")
 async def view_history(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
     rows = history_sheet.get_all_values()
@@ -142,7 +144,7 @@ async def view_history(callback: CallbackQuery):
     )
 
 
-@dp.callback_query(lambda c: c.data == "mark_session")
+@router.callback_query(lambda c: c.data == "mark_session")
 async def mark_session(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -168,12 +170,12 @@ async def mark_session(callback: CallbackQuery):
     )
 
 
-@dp.callback_query(lambda c: c.data == "cancel_request")
+@router.callback_query(lambda c: c.data == "cancel_request")
 async def cancel_request(callback: CallbackQuery):
     await callback.message.edit_text(t("Запит скасовано.", user=callback.from_user))
 
 
-@dp.callback_query(lambda c: c.data.startswith("approve_deduction:"))
+@router.callback_query(lambda c: c.data.startswith("approve_deduction:"))
 async def approve_deduction(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = clients_sheet.get_all_records()
@@ -210,7 +212,7 @@ async def approve_deduction(callback: CallbackQuery):
     await callback.message.answer(t("Клієнт не знайдений", user=callback.from_user))
 
 
-@dp.callback_query(lambda c: c.data == "request_subscription")
+@router.callback_query(lambda c: c.data == "request_subscription")
 async def request_subscription(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -236,14 +238,14 @@ async def request_subscription(callback: CallbackQuery):
     )
 
 
-@dp.callback_query(lambda c: c.data == "deny_subscription")
+@router.callback_query(lambda c: c.data == "deny_subscription")
 async def deny_subscription(callback: CallbackQuery):
     await callback.message.edit_text(
         t("❌ Запит на абонемент відхилено.", user=callback.from_user)
     )
 
 
-@dp.callback_query(lambda c: c.data.startswith("approve_subscription:"))
+@router.callback_query(lambda c: c.data.startswith("approve_subscription:"))
 async def approve_subscription(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = clients_sheet.get_all_records()
@@ -278,7 +280,7 @@ async def approve_subscription(callback: CallbackQuery):
     await callback.message.answer(t("Клієнт не знайдений", user=callback.from_user))
 
 
-@dp.callback_query(lambda c: c.data == "admin_panel")
+@router.callback_query(lambda c: c.data == "admin_panel")
 async def admin_panel(callback: CallbackQuery):
     clients = clients_sheet.get_all_records()
     reserve_total = 0
@@ -323,7 +325,7 @@ async def admin_panel(callback: CallbackQuery):
     )
 
 
-@dp.callback_query(lambda c: c.data.startswith("add_session:"))
+@router.callback_query(lambda c: c.data.startswith("add_session:"))
 async def add_session(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = clients_sheet.get_all_records()
@@ -348,7 +350,7 @@ async def add_session(callback: CallbackQuery):
             return
 
 
-@dp.callback_query(lambda c: c.data.startswith("history:"))
+@router.callback_query(lambda c: c.data.startswith("history:"))
 async def user_history(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     rows = history_sheet.get_all_values()
@@ -358,7 +360,7 @@ async def user_history(callback: CallbackQuery):
     )
 
 
-@dp.callback_query(lambda c: c.data == "secret_button")
+@router.callback_query(lambda c: c.data == "secret_button")
 async def secret_button(callback: CallbackQuery):
     messages = [
         "😾 Котик незадоволений, що ти натиснув цю кнопку!",
@@ -369,7 +371,7 @@ async def secret_button(callback: CallbackQuery):
     await callback.message.answer(t(random.choice(messages), user=callback.from_user))
 
 
-@dp.message()
+@router.message()
 async def unknown_message(message: types.Message) -> None:
     """Handle unknown commands."""
     await message.answer(t("unknown", user=message.from_user))

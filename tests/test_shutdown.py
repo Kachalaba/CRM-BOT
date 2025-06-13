@@ -16,8 +16,7 @@ def test_shutdown(monkeypatch):
 
     monkeypatch.setattr(handlers.dp, "stop_polling", fake_stop)
 
-    session = MagicMock()
-    sheets.client = MagicMock(session=session)
+    sheets.client = MagicMock()
 
     msgs = []
     monkeypatch.setattr(logging, "info", lambda msg: msgs.append(msg))
@@ -25,7 +24,6 @@ def test_shutdown(monkeypatch):
     asyncio.run(main.shutdown())
 
     assert called.get("stop")
-    session.close.assert_called_once()
     assert "Bot stopped" in msgs
 
 
@@ -47,7 +45,10 @@ def test_main_signal_shutdown(monkeypatch):
 
     monkeypatch.setattr(main.os.path, "exists", lambda path: True)
 
-    monkeypatch.setattr(main, "init_gspread", lambda _: None)
+    async def fake_init(_):
+        return None
+
+    monkeypatch.setattr(main, "init_gspread", fake_init)
     monkeypatch.setattr(handlers.dp, "start_polling", AsyncMock())
 
     stopped = {}
@@ -57,8 +58,7 @@ def test_main_signal_shutdown(monkeypatch):
 
     monkeypatch.setattr(handlers.dp, "stop_polling", fake_stop_polling)
 
-    session = MagicMock()
-    sheets.client = MagicMock(session=session)
+    sheets.client = MagicMock()
 
     msgs = []
     monkeypatch.setattr(logging, "info", lambda msg: msgs.append(msg))
@@ -70,5 +70,4 @@ def test_main_signal_shutdown(monkeypatch):
     loop.run_until_complete(asyncio.sleep(0))
 
     assert stopped.get("called")
-    session.close.assert_called_once()
     assert "Bot stopped" in msgs
