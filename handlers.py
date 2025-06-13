@@ -13,7 +13,7 @@ from utils.i18n import t
 logger = logging.getLogger(__name__)
 
 bot: Bot | None = None
-ADMIN_IDS: list[int] = []
+ADMIN_ID: str | None = None
 
 STATS_CACHE: dict[str, tuple[float, int]] = {}
 
@@ -21,7 +21,6 @@ RENT_COST_PER_SESSION = 330
 
 dp = Dispatcher()
 router = Router()
-dp.include_router(router)
 
 
 @router.message(lambda message: message.contact)
@@ -49,7 +48,7 @@ async def register_by_contact(message: types.Message):
 
 
 @router.message(Command(commands=["start"]))
-async def send_welcome(message: types.Message):
+async def send_welcome(message: types.Message, admin_id: str):
     keyboard = [
         [InlineKeyboardButton(text="📊 Мої заняття", callback_data="my_sessions")],
         [InlineKeyboardButton(text="📜 Історія занять", callback_data="view_history")],
@@ -65,7 +64,7 @@ async def send_welcome(message: types.Message):
         ],
         [InlineKeyboardButton(text="😼 Таємна кнопка", callback_data="secret_button")],
     ]
-    if message.from_user.id in ADMIN_IDS:
+    if str(message.from_user.id) == admin_id:
         keyboard.insert(
             0,
             [
@@ -171,7 +170,7 @@ async def view_history(callback: CallbackQuery):
 
 
 @router.callback_query(lambda c: c.data == "mark_session")
-async def mark_session(callback: CallbackQuery):
+async def mark_session(callback: CallbackQuery, admin_id: str):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -187,7 +186,7 @@ async def mark_session(callback: CallbackQuery):
     )
     logger.info("Отримано запит на списання заняття від %s", callback.from_user.id)
     await bot.send_message(
-        ADMIN_IDS[0],
+        admin_id,
         f"Запит на списання заняття від {callback.from_user.id}",
         reply_markup=keyboard,
     )
@@ -244,7 +243,7 @@ async def approve_deduction(callback: CallbackQuery):
 
 
 @router.callback_query(lambda c: c.data == "request_subscription")
-async def request_subscription(callback: CallbackQuery):
+async def request_subscription(callback: CallbackQuery, admin_id: str):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -260,7 +259,7 @@ async def request_subscription(callback: CallbackQuery):
     )
     logger.info("Клієнт %s запитав абонемент", callback.from_user.id)
     await bot.send_message(
-        ADMIN_IDS[0],
+        admin_id,
         f"Запит на новий абонемент від {callback.from_user.id}",
         reply_markup=keyboard,
     )

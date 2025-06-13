@@ -11,13 +11,14 @@ import main  # noqa: E402
 
 
 def test_missing_credentials(monkeypatch, capsys):
-    monkeypatch.delenv("CREDENTIALS_FILE", raising=False)
-    monkeypatch.setenv("API_TOKEN", "1:token")
-    monkeypatch.setenv("ADMIN_IDS", "1")
+    monkeypatch.delenv("GOOGLE_CREDENTIALS_JSON", raising=False)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "1:token")
+    monkeypatch.setenv("ADMIN_ID", "1")
+    monkeypatch.setenv("GOOGLE_SHEET_ID", "sheet")
 
     called = {}
 
-    async def fake_init(_):
+    async def fake_init(*_):
         called["init"] = True
 
     monkeypatch.setattr(main, "init_gspread", fake_init)
