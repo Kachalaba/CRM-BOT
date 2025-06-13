@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Any
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 SCOPE = [
-    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
 
@@ -27,6 +28,16 @@ sheet: AsyncioGspreadSpreadsheet | None = None
 clients_sheet: "SafeWorksheet | None" = None
 history_sheet: "SafeWorksheet | None" = None
 groups_sheet: "SafeWorksheet | None" = None
+
+
+def get_google_credentials() -> Credentials:
+    """Return Google service account credentials from the environment."""
+    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if not creds_json:
+        raise ValueError("Змінна GOOGLE_CREDENTIALS_JSON не задана у файлі .env!")
+    creds_dict = json.loads(creds_json)
+    creds = Credentials.from_service_account_info(creds_dict)
+    return creds.with_scopes(SCOPE)
 
 
 class SafeWorksheet:
@@ -89,14 +100,11 @@ async def validate_spreadsheet(spreadsheet_id: str) -> None:
     logger.info("✅ Spreadsheet ID OK")
 
 
-async def init_gspread(credentials_file: str, sheet_id: str) -> None:
+async def init_gspread(sheet_id: str) -> None:
     """Initialize Google Sheets connection."""
     global agcm, client, sheet, clients_sheet, history_sheet, groups_sheet
 
-    if not os.path.exists(credentials_file):
-        raise FileNotFoundError(f"Файл {credentials_file} не знайдено.")
-
-    creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPE)
+    creds = get_google_credentials()
     agcm = AsyncioGspreadClientManager(lambda: creds)
     try:
         client = await agcm.authorize()

@@ -22,10 +22,9 @@ def make_error(status: int) -> APIError:
     return APIError(Resp(status))
 
 
-@patch("sheets.os.path.exists", return_value=True)
 @patch("sheets.Credentials")
 @patch("sheets.AsyncioGspreadClientManager")
-def test_quota_error(mock_mgr, mock_creds, mock_exists, caplog):
+def test_quota_error(mock_mgr, mock_creds, caplog, monkeypatch):
     mock_ws = MagicMock()
     mock_ws.get_all_records = AsyncMock(side_effect=make_error(429))
     mock_sheet = MagicMock()
@@ -33,9 +32,12 @@ def test_quota_error(mock_mgr, mock_creds, mock_exists, caplog):
     mock_client = MagicMock()
     mock_client.open_by_key = AsyncMock(return_value=mock_sheet)
     mock_mgr.return_value.authorize = AsyncMock(return_value=mock_client)
-    mock_creds.from_service_account_file.return_value = "creds"
+    fake_creds = MagicMock()
+    fake_creds.with_scopes.return_value = "creds"
+    mock_creds.from_service_account_info.return_value = fake_creds
+    monkeypatch.setenv("GOOGLE_CREDENTIALS_JSON", "{}")
 
-    asyncio.run(sheets.init_gspread("creds.json", "sheet"))
+    asyncio.run(sheets.init_gspread("sheet"))
 
     with caplog.at_level(logging.WARNING):
         result = asyncio.run(sheets.clients_sheet.get_all_records())
@@ -43,10 +45,9 @@ def test_quota_error(mock_mgr, mock_creds, mock_exists, caplog):
     assert any(rec.levelno == logging.WARNING for rec in caplog.records)
 
 
-@patch("sheets.os.path.exists", return_value=True)
 @patch("sheets.Credentials")
 @patch("sheets.AsyncioGspreadClientManager")
-def test_unknown_error(mock_mgr, mock_creds, mock_exists, caplog):
+def test_unknown_error(mock_mgr, mock_creds, caplog, monkeypatch):
     mock_ws = MagicMock()
     mock_ws.get_all_records = AsyncMock(side_effect=make_error(500))
     mock_sheet = MagicMock()
@@ -54,9 +55,12 @@ def test_unknown_error(mock_mgr, mock_creds, mock_exists, caplog):
     mock_client = MagicMock()
     mock_client.open_by_key = AsyncMock(return_value=mock_sheet)
     mock_mgr.return_value.authorize = AsyncMock(return_value=mock_client)
-    mock_creds.from_service_account_file.return_value = "creds"
+    fake_creds = MagicMock()
+    fake_creds.with_scopes.return_value = "creds"
+    mock_creds.from_service_account_info.return_value = fake_creds
+    monkeypatch.setenv("GOOGLE_CREDENTIALS_JSON", "{}")
 
-    asyncio.run(sheets.init_gspread("creds.json", "sheet"))
+    asyncio.run(sheets.init_gspread("sheet"))
 
     with caplog.at_level(logging.ERROR):
         result = asyncio.run(sheets.clients_sheet.get_all_records())

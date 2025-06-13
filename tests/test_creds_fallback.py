@@ -16,16 +16,6 @@ def test_missing_credentials(monkeypatch, capsys):
     monkeypatch.setenv("ADMIN_ID", "1")
     monkeypatch.setenv("GOOGLE_SHEET_ID", "sheet")
 
-    called = {}
-
-    async def fake_init(*_):
-        called["init"] = True
-
-    monkeypatch.setattr(main, "init_gspread", fake_init)
-
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(ValueError) as exc:
         main.main()
-    assert exc.value.code == 1
-    assert not called
-    err = capsys.readouterr().err
-    assert "creds.json not found" in err
+    assert "GOOGLE_CREDENTIALS_JSON" in str(exc.value)
