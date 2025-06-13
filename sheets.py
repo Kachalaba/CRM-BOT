@@ -20,7 +20,6 @@ SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
 ]
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "spreadsheet_id")
 
 agcm: AsyncioGspreadClientManager | None = None
 client: AsyncioGspreadSpreadsheet | None = None
@@ -90,7 +89,7 @@ async def validate_spreadsheet(spreadsheet_id: str) -> None:
     logger.info("✅ Spreadsheet ID OK")
 
 
-async def init_gspread(credentials_file: str) -> None:
+async def init_gspread(credentials_file: str, sheet_id: str) -> None:
     """Initialize Google Sheets connection."""
     global agcm, client, sheet, clients_sheet, history_sheet, groups_sheet
 
@@ -101,8 +100,8 @@ async def init_gspread(credentials_file: str) -> None:
     agcm = AsyncioGspreadClientManager(lambda: creds)
     try:
         client = await agcm.authorize()
-        await validate_spreadsheet(SPREADSHEET_ID)
-        sheet = await client.open_by_key(SPREADSHEET_ID)
+        await validate_spreadsheet(sheet_id)
+        sheet = await client.open_by_key(sheet_id)
         clients_sheet = await safe_worksheet(sheet, "Клиенты", "Клієнти")
         history_sheet = await safe_worksheet(sheet, "История")
         groups_sheet = await safe_worksheet(sheet, "Группа")

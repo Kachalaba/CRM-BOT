@@ -39,13 +39,14 @@ def test_main_signal_shutdown(monkeypatch):
 
     loop.add_signal_handler = add_sig
 
-    monkeypatch.setenv("API_TOKEN", "123:abc")
-    monkeypatch.setenv("CREDENTIALS_FILE", "c")
-    monkeypatch.setenv("ADMIN_IDS", "1")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    monkeypatch.setenv("GOOGLE_CREDENTIALS_JSON", "c")
+    monkeypatch.setenv("ADMIN_ID", "1")
+    monkeypatch.setenv("GOOGLE_SHEET_ID", "sheet")
 
     monkeypatch.setattr(main.os.path, "exists", lambda path: True)
 
-    async def fake_init(_):
+    async def fake_init(*_):
         return None
 
     monkeypatch.setattr(main, "init_gspread", fake_init)

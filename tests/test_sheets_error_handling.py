@@ -35,7 +35,7 @@ def test_quota_error(mock_mgr, mock_creds, mock_exists, caplog):
     mock_mgr.return_value.authorize = AsyncMock(return_value=mock_client)
     mock_creds.from_service_account_file.return_value = "creds"
 
-    asyncio.run(sheets.init_gspread("creds.json"))
+    asyncio.run(sheets.init_gspread("creds.json", "sheet"))
 
     with caplog.at_level(logging.WARNING):
         result = asyncio.run(sheets.clients_sheet.get_all_records())
@@ -56,7 +56,7 @@ def test_unknown_error(mock_mgr, mock_creds, mock_exists, caplog):
     mock_mgr.return_value.authorize = AsyncMock(return_value=mock_client)
     mock_creds.from_service_account_file.return_value = "creds"
 
-    asyncio.run(sheets.init_gspread("creds.json"))
+    asyncio.run(sheets.init_gspread("creds.json", "sheet"))
 
     with caplog.at_level(logging.ERROR):
         result = asyncio.run(sheets.clients_sheet.get_all_records())
