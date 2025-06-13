@@ -12,6 +12,8 @@ from gspread_asyncio import (
     AsyncioGspreadWorksheet,
 )
 
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 SCOPE = [
@@ -46,15 +48,15 @@ class SafeWorksheet:
             except APIError as err:
                 status = getattr(err.response, "status", None)
                 if status in {403, 429}:
-                    logging.warning("Sheets quota/permission error: %s", err)
+                    logger.warning("Sheets quota/permission error: %s", err)
                 else:
-                    logging.error("Sheets API error: %s", err, exc_info=True)
+                    logger.error("Sheets API error: %s", err, exc_info=True)
                 return default
             except ClientError as err:
-                logging.error("Sheets network error: %s", err, exc_info=True)
+                logger.error("Sheets network error: %s", err, exc_info=True)
                 return default
             except Exception as err:  # pragma: no cover - unexpected errors
-                logging.error("Sheets unexpected error: %s", err, exc_info=True)
+                logger.error("Sheets unexpected error: %s", err, exc_info=True)
                 return default
 
         return wrapper
@@ -70,7 +72,7 @@ async def safe_worksheet(
             return SafeWorksheet(ws)
         except WorksheetNotFound:
             continue
-    logging.error("Worksheet not found: %s", ", ".join(candidates))
+    logger.error("Worksheet not found: %s", ", ".join(candidates))
     raise WorksheetNotFound(f"No worksheet from candidates: {', '.join(candidates)}")
 
 
@@ -80,12 +82,12 @@ async def validate_spreadsheet(spreadsheet_id: str) -> None:
         await client.open_by_key(spreadsheet_id)
     except APIError as err:
         if getattr(err.response, "status", None) == 404:
-            logging.error("🚫 Spreadsheet ID not found: %s", spreadsheet_id)
-            logging.error(
+            logger.error("🚫 Spreadsheet ID not found: %s", spreadsheet_id)
+            logger.error(
                 "https://docs.google.com/spreadsheets/d/%s/edit", spreadsheet_id
             )
         raise
-    logging.info("✅ Spreadsheet ID OK")
+    logger.info("✅ Spreadsheet ID OK")
 
 
 async def init_gspread(credentials_file: str) -> None:
@@ -105,18 +107,18 @@ async def init_gspread(credentials_file: str) -> None:
         history_sheet = await safe_worksheet(sheet, "История")
         groups_sheet = await safe_worksheet(sheet, "Группа")
     except SpreadsheetNotFound as err:
-        logging.error("Spreadsheet not found: %s", err, exc_info=True)
+        logger.error("Spreadsheet not found: %s", err, exc_info=True)
         raise RuntimeError("❗ Таблицю не знайдено.") from err
     except WorksheetNotFound as err:
-        logging.error("Worksheet not found: %s", err, exc_info=True)
+        logger.error("Worksheet not found: %s", err, exc_info=True)
         raise RuntimeError("❗ Лист не знайдено.") from err
     except APIError as err:
         if getattr(err.response, "status", None) in {403, 429}:
-            logging.warning("Sheets quota/permission error: %s", err)
+            logger.warning("Sheets quota/permission error: %s", err)
             raise RuntimeError(
                 "❗ Не вдалося зв’язатися з Google Sheets. Спробуйте пізніше."
             ) from err
-        logging.error("Sheets API error: %s", err, exc_info=True)
+        logger.error("Sheets API error: %s", err, exc_info=True)
         raise
 
 

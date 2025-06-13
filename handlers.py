@@ -10,6 +10,8 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sheets import clients_sheet, get_client_name, history_sheet
 from utils.i18n import t
 
+logger = logging.getLogger(__name__)
+
 bot: Bot | None = None
 ADMIN_IDS: list[int] = []
 
@@ -37,7 +39,7 @@ async def register_by_contact(message: types.Message):
         return
     end_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
     clients_sheet.append_row([user_id, name, 10, end_date, "-"])
-    logging.info("Зареєстровано нового користувача: %s (%s)", user_id, name)
+    logger.info("Зареєстровано нового користувача: %s (%s)", user_id, name)
     await message.answer(
         t(
             "✅ Реєстрація успішна! Вам додано 10 занять на 60 днів.",
@@ -77,6 +79,7 @@ async def send_welcome(message: types.Message):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
     )
     await message.answer(t("/help", user=message.from_user))
+    logger.info("User %s used /start", message.from_user.id)
 
 
 @router.message(Command(commands=["help"]))
@@ -92,6 +95,7 @@ async def ping(message: types.Message) -> None:
     sent = await message.answer(t("pong", user=message.from_user))
     latency = int((time.monotonic() - start) * 1000)
     await sent.edit_text(f"pong {latency} ms")
+    logger.info("User %s used /ping", message.from_user.id)
 
 
 @router.message(Command(commands=["stats"]))
@@ -104,6 +108,7 @@ async def stats(message: types.Message) -> None:
         await message.answer(
             t("У тебя {count} оставшихся", user=message.from_user, count=cached[1])
         )
+        logger.info("User %s used /stats (cache)", message.from_user.id)
         return
 
     records = clients_sheet.get_all_records()
@@ -119,6 +124,7 @@ async def stats(message: types.Message) -> None:
             await message.answer(
                 t("У тебя {count} оставшихся", user=message.from_user, count=count)
             )
+            logger.info("User %s used /stats", message.from_user.id)
             return
     await message.answer(t("❗ Ви ще не зареєстровані.", user=message.from_user))
 
@@ -134,7 +140,7 @@ async def my_sessions(callback: CallbackQuery):
         return
     for row in records:
         if str(row["ID"]) == user_id:
-            logging.info("Перевірка занять для %s", user_id)
+            logger.info("Перевірка занять для %s", user_id)
             await callback.message.answer(
                 t(
                     "У вас залишилось {count} занять. Термін дії: {date}",
@@ -179,7 +185,7 @@ async def mark_session(callback: CallbackQuery):
             ]
         ]
     )
-    logging.info("Отримано запит на списання заняття від %s", callback.from_user.id)
+    logger.info("Отримано запит на списання заняття від %s", callback.from_user.id)
     await bot.send_message(
         ADMIN_IDS[0],
         f"Запит на списання заняття від {callback.from_user.id}",
@@ -216,7 +222,7 @@ async def approve_deduction(callback: CallbackQuery):
                 ]
             )
             name = get_client_name(row)
-            logging.info("Списано 1 заняття для %s, залишок: %s", user_id, new_sessions)
+            logger.info("Списано 1 заняття для %s, залишок: %s", user_id, new_sessions)
             await bot.send_message(
                 user_id,
                 t(
@@ -252,7 +258,7 @@ async def request_subscription(callback: CallbackQuery):
             ]
         ]
     )
-    logging.info("Клієнт %s запитав абонемент", callback.from_user.id)
+    logger.info("Клієнт %s запитав абонемент", callback.from_user.id)
     await bot.send_message(
         ADMIN_IDS[0],
         f"Запит на новий абонемент від {callback.from_user.id}",
@@ -291,7 +297,7 @@ async def approve_subscription(callback: CallbackQuery):
                     "Додано 10 занять",
                 ]
             )
-            logging.info("Додано 10 занять користувачу %s", user_id)
+            logger.info("Додано 10 занять користувачу %s", user_id)
             await bot.send_message(
                 user_id,
                 t(
