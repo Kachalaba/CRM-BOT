@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Any
 
+from aiohttp import ClientError
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
@@ -39,16 +40,22 @@ class SafeWorksheet:
             return attr
 
         async def wrapper(*args: Any, **kwargs: Any):
+            default = None
             try:
                 return await attr(*args, **kwargs)
             except APIError as err:
-                if getattr(err.response, "status", None) in {403, 429}:
+                status = getattr(err.response, "status", None)
+                if status in {403, 429}:
                     logging.warning("Sheets quota/permission error: %s", err)
-                    raise RuntimeError(
-                        "❗ Не вдалося зв’язатися з Google Sheets. Спробуйте пізніше."
-                    ) from err
-                logging.error("Sheets API error: %s", err, exc_info=True)
-                raise
+                else:
+                    logging.error("Sheets API error: %s", err, exc_info=True)
+                return default
+            except ClientError as err:
+                logging.error("Sheets network error: %s", err, exc_info=True)
+                return default
+            except Exception as err:  # pragma: no cover - unexpected errors
+                logging.error("Sheets unexpected error: %s", err, exc_info=True)
+                return default
 
         return wrapper
 

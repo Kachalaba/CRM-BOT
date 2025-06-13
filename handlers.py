@@ -27,6 +27,11 @@ async def register_by_contact(message: types.Message):
     user_id = str(message.contact.user_id)
     name = message.contact.first_name or "Клієнт"
     records = clients_sheet.get_all_records()
+    if records is None:
+        await message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     if any(str(row["ID"]) == user_id for row in records):
         await message.answer(t("❗ Ви вже зареєстровані.", user=message.from_user))
         return
@@ -102,6 +107,11 @@ async def stats(message: types.Message) -> None:
         return
 
     records = clients_sheet.get_all_records()
+    if records is None:
+        await message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     for row in records:
         if str(row["ID"]) == user_id:
             count = int(row["К-сть тренувань"])
@@ -117,6 +127,11 @@ async def stats(message: types.Message) -> None:
 async def my_sessions(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
     records = clients_sheet.get_all_records()
+    if records is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     for row in records:
         if str(row["ID"]) == user_id:
             logging.info("Перевірка занять для %s", user_id)
@@ -138,6 +153,11 @@ async def my_sessions(callback: CallbackQuery):
 async def view_history(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
     rows = history_sheet.get_all_values()
+    if rows is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     lines = [f"{row[1]} – {row[2]}" for row in rows if row[0] == user_id]
     await callback.message.answer(
         "\n".join(lines) if lines else t("Історія пуста.", user=callback.from_user)
@@ -179,6 +199,11 @@ async def cancel_request(callback: CallbackQuery):
 async def approve_deduction(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = clients_sheet.get_all_records()
+    if records is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     for idx, row in enumerate(records):
         if str(row["ID"]) == user_id:
             new_sessions = max(0, int(row["К-сть тренувань"]) - 1)
@@ -249,6 +274,11 @@ async def deny_subscription(callback: CallbackQuery):
 async def approve_subscription(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = clients_sheet.get_all_records()
+    if records is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     for idx, row in enumerate(records):
         if str(row["ID"]) == user_id:
             clients_sheet.update_cell(idx + 2, 3, 10)
@@ -283,6 +313,11 @@ async def approve_subscription(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data == "admin_panel")
 async def admin_panel(callback: CallbackQuery):
     clients = clients_sheet.get_all_records()
+    if clients is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     reserve_total = 0
     for client in clients:
         user_id = client["ID"]
@@ -329,6 +364,11 @@ async def admin_panel(callback: CallbackQuery):
 async def add_session(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = clients_sheet.get_all_records()
+    if records is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     for idx, row in enumerate(records):
         if str(row["ID"]) == user_id:
             new_sessions = int(row["К-сть тренувань"]) + 1
@@ -354,6 +394,11 @@ async def add_session(callback: CallbackQuery):
 async def user_history(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     rows = history_sheet.get_all_values()
+    if rows is None:
+        await callback.message.answer(
+            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
+        )
+        return
     lines = [f"{row[1]} – {row[2]}" for row in rows if row[0] == user_id]
     await callback.message.answer(
         "\n".join(lines) if lines else t("Історія пуста.", user=callback.from_user)

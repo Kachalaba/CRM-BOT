@@ -2,7 +2,6 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from gspread.exceptions import APIError
 
 import sheets
@@ -39,8 +38,8 @@ def test_quota_error(mock_mgr, mock_creds, mock_exists, caplog):
     asyncio.run(sheets.init_gspread("creds.json"))
 
     with caplog.at_level(logging.WARNING):
-        with pytest.raises(RuntimeError):
-            asyncio.run(sheets.clients_sheet.get_all_records())
+        result = asyncio.run(sheets.clients_sheet.get_all_records())
+    assert result is None
     assert any(rec.levelno == logging.WARNING for rec in caplog.records)
 
 
@@ -60,6 +59,6 @@ def test_unknown_error(mock_mgr, mock_creds, mock_exists, caplog):
     asyncio.run(sheets.init_gspread("creds.json"))
 
     with caplog.at_level(logging.ERROR):
-        with pytest.raises(APIError):
-            asyncio.run(sheets.clients_sheet.get_all_records())
+        result = asyncio.run(sheets.clients_sheet.get_all_records())
+    assert result is None
     assert any(rec.levelno == logging.ERROR for rec in caplog.records)
