@@ -2,8 +2,11 @@ import logging
 import os
 
 import gspread
+from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
+
+load_dotenv()
 
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
