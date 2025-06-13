@@ -16,7 +16,7 @@ def test_stats_caching(monkeypatch):
 
     records = [{"ID": "42", "К-сть тренувань": 3}]
     sheet = MagicMock(get_all_records=MagicMock(return_value=records))
-    monkeypatch.setattr(handlers, "clients_sheet", sheet)
+    monkeypatch.setattr(handlers.sheets, "clients_sheet", sheet)
 
     now = [0.0]
     monkeypatch.setattr(handlers.time, "monotonic", lambda: now[0])
