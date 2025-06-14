@@ -1,5 +1,6 @@
 # handlers.py (ВИПРАВЛЕНА ВЕРСІЯ)
 
+import inspect
 import logging
 import random
 import time
@@ -7,7 +8,8 @@ from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (CallbackQuery, InlineKeyboardButton,
+                           InlineKeyboardMarkup)
 
 # Ось головні зміни:
 import sheets  # Імпортуємо весь модуль, а не окремі змінні
@@ -27,12 +29,19 @@ dp = Dispatcher()
 router = Router()
 
 
+async def maybe_await(value):
+    """Return awaited result if value is awaitable."""
+    if inspect.isawaitable(value):
+        return await value
+    return value
+
+
 @router.message(lambda message: message.contact)
 async def register_by_contact(message: types.Message):
     user_id = str(message.contact.user_id)
     name = message.contact.first_name or "Клієнт"
     # Звертаємося через sheets.clients_sheet
-    records = await sheets.clients_sheet.get_all_records()
+    records = await maybe_await(sheets.clients_sheet.get_all_records())
     if records is None:
         await message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -115,7 +124,7 @@ async def stats(message: types.Message) -> None:
         logger.info("User %s used /stats (cache)", message.from_user.id)
         return
 
-    records = await sheets.clients_sheet.get_all_records()
+    records = await maybe_await(sheets.clients_sheet.get_all_records())
     if records is None:
         await message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -123,7 +132,7 @@ async def stats(message: types.Message) -> None:
         return
     for row in records:
         if str(row["ID"]) == user_id:
-            count = int(row["К-сть тренувань"])
+            count = int(row.get("К-сть тренувань") or 0)
             STATS_CACHE[user_id] = (now, count)
             await message.answer(
                 t("У тебя {count} оставшихся", user=message.from_user, count=count)
@@ -136,7 +145,7 @@ async def stats(message: types.Message) -> None:
 @router.callback_query(lambda c: c.data == "my_sessions")
 async def my_sessions(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
-    records = await sheets.clients_sheet.get_all_records()
+    records = await maybe_await(sheets.clients_sheet.get_all_records())
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -162,7 +171,7 @@ async def my_sessions(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data == "view_history")
 async def view_history(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
-    rows = await sheets.history_sheet.get_all_values()
+    rows = await maybe_await(sheets.history_sheet.get_all_values())
     if rows is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -207,54 +216,6 @@ async def cancel_request(callback: CallbackQuery):
 
 # handlers.py
 
-@router.callback_query(lambda c: c.data.startswith("approve_subscription:"))
-async def approve_subscription(callback: CallbackQuery):
-    user_id = callback.data.split(":")[1]
-    records = await sheets.clients_sheet.get_all_records()
-    if records is None:
-        await callback.message.answer(
-            "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
-        )
-        return
-    for idx, row in enumerate(records):
-        if str(row["ID"]) == user_id:
-            # --- ОСЬ ГОЛОВНІ ЗМІНИ ---
-            # 1. Отримуємо поточну кількість занять
-            current_sessions = int(row["К-сть тренувань"])
-            # 2. Додаємо 10 до поточної кількості
-            new_sessions_total = current_sessions + 10
-            # 3. Оновлюємо комірку новим, підсумованим значенням
-            await sheets.clients_sheet.update_cell(idx + 2, 3, new_sessions_total)
-            # --- КІНЕЦЬ ЗМІН ---
-
-            new_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
-            await sheets.clients_sheet.update_cell(idx + 2, 4, new_date)
-            await sheets.history_sheet.append_row(
-                [
-                    user_id,
-                    datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "Додано 10 занять",
-                ]
-            )
-            logger.info("Додано 10 занять користувачу %s, новий баланс: %s", user_id, new_sessions_total)
-            await bot.send_message(
-                user_id,
-                t(
-                    "🎉 Вам видано новий абонемент на 10 занять (60 днів). Тепер у вас {count} занять.",
-                    user=callback.from_user,
-                    count=new_sessions_total
-                ),
-            )
-            await callback.message.answer(
-                t(
-                    "Видано новий абонемент для ID {user_id}",
-                    user=callback.from_user,
-                    user_id=user_id,
-                )
-            )
-            return
-    await callback.message.answer(t("Клієнт не знайдений", user=callback.from_user))
-
 
 @router.callback_query(lambda c: c.data == "request_subscription")
 async def request_subscription(callback: CallbackQuery, admin_id: str):
@@ -292,7 +253,7 @@ async def deny_subscription(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data.startswith("approve_subscription:"))
 async def approve_subscription(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
-    records = await sheets.clients_sheet.get_all_records()
+    records = await maybe_await(sheets.clients_sheet.get_all_records())
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -300,7 +261,8 @@ async def approve_subscription(callback: CallbackQuery):
         return
     for idx, row in enumerate(records):
         if str(row["ID"]) == user_id:
-            await sheets.clients_sheet.update_cell(idx + 2, 3, 10)
+            current = int(row.get("К-сть тренувань") or 0)
+            await sheets.clients_sheet.update_cell(idx + 2, 3, current + 10)
             new_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
             await sheets.clients_sheet.update_cell(idx + 2, 4, new_date)
             await sheets.history_sheet.append_row(
@@ -326,12 +288,36 @@ async def approve_subscription(callback: CallbackQuery):
                 )
             )
             return
-    await callback.message.answer(t("Клієнт не знайдений", user=callback.from_user))
+    try:
+        chat = await bot.get_chat(user_id)
+        name = chat.first_name or str(user_id)
+    except Exception:
+        name = str(user_id)
+    new_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
+    await sheets.clients_sheet.append_row([user_id, name, 10, new_date, "-"])
+    await sheets.history_sheet.append_row(
+        [user_id, datetime.now().strftime("%Y-%m-%d %H:%M"), "Додано 10 занять"]
+    )
+    logger.info("Створено нового користувача %s з абонементом", user_id)
+    await bot.send_message(
+        user_id,
+        t(
+            "🎉 Вам видано новий абонемент на 10 занять (60 днів)",
+            user=callback.from_user,
+        ),
+    )
+    await callback.message.answer(
+        t(
+            "Видано новий абонемент для ID {user_id}",
+            user=callback.from_user,
+            user_id=user_id,
+        )
+    )
 
 
 @router.callback_query(lambda c: c.data == "admin_panel")
 async def admin_panel(callback: CallbackQuery):
-    clients = await sheets.clients_sheet.get_all_records()
+    clients = await maybe_await(sheets.clients_sheet.get_all_records())
     if clients is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -341,7 +327,7 @@ async def admin_panel(callback: CallbackQuery):
     for client in clients:
         user_id = client["ID"]
         name = get_client_name(client)
-        sessions = int(client["К-сть тренувань"])
+        sessions = int(client.get("К-сть тренувань") or 0)
         reserve_total += sessions * RENT_COST_PER_SESSION
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -382,7 +368,7 @@ async def admin_panel(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data.startswith("add_session:"))
 async def add_session(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
-    records = await sheets.clients_sheet.get_all_records()
+    records = await maybe_await(sheets.clients_sheet.get_all_records())
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -390,7 +376,7 @@ async def add_session(callback: CallbackQuery):
         return
     for idx, row in enumerate(records):
         if str(row["ID"]) == user_id:
-            new_sessions = int(row["К-сть тренувань"]) + 1
+            new_sessions = int(row.get("К-сть тренувань") or 0) + 1
             await sheets.clients_sheet.update_cell(idx + 2, 3, new_sessions)
             if not row.get("Ім’я"):
                 await sheets.clients_sheet.update_cell(idx + 2, 2, "Клієнт")
@@ -412,7 +398,7 @@ async def add_session(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data.startswith("history:"))
 async def user_history(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
-    rows = await sheets.history_sheet.get_all_values()
+    rows = await maybe_await(sheets.history_sheet.get_all_values())
     if rows is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
