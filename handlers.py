@@ -205,8 +205,10 @@ async def cancel_request(callback: CallbackQuery):
     await callback.message.edit_text(t("Запит скасовано.", user=callback.from_user))
 
 
-@router.callback_query(lambda c: c.data.startswith("approve_deduction:"))
-async def approve_deduction(callback: CallbackQuery):
+# handlers.py
+
+@router.callback_query(lambda c: c.data.startswith("approve_subscription:"))
+async def approve_subscription(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
     records = await sheets.clients_sheet.get_all_records()
     if records is None:
@@ -216,30 +218,37 @@ async def approve_deduction(callback: CallbackQuery):
         return
     for idx, row in enumerate(records):
         if str(row["ID"]) == user_id:
-            new_sessions = max(0, int(row["К-сть тренувань"]) - 1)
-            await sheets.clients_sheet.update_cell(idx + 2, 3, new_sessions)
+            # --- ОСЬ ГОЛОВНІ ЗМІНИ ---
+            # 1. Отримуємо поточну кількість занять
+            current_sessions = int(row["К-сть тренувань"])
+            # 2. Додаємо 10 до поточної кількості
+            new_sessions_total = current_sessions + 10
+            # 3. Оновлюємо комірку новим, підсумованим значенням
+            await sheets.clients_sheet.update_cell(idx + 2, 3, new_sessions_total)
+            # --- КІНЕЦЬ ЗМІН ---
+
+            new_date = (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
+            await sheets.clients_sheet.update_cell(idx + 2, 4, new_date)
             await sheets.history_sheet.append_row(
                 [
                     user_id,
                     datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "Списано 1 заняття",
+                    "Додано 10 занять",
                 ]
             )
-            name = get_client_name(row)
-            logger.info("Списано 1 заняття для %s, залишок: %s", user_id, new_sessions)
+            logger.info("Додано 10 занять користувачу %s, новий баланс: %s", user_id, new_sessions_total)
             await bot.send_message(
                 user_id,
                 t(
-                    "❗ Списано 1 заняття. Залишок: {count}",
+                    "🎉 Вам видано новий абонемент на 10 занять (60 днів). Тепер у вас {count} занять.",
                     user=callback.from_user,
-                    count=new_sessions,
+                    count=new_sessions_total
                 ),
             )
             await callback.message.answer(
                 t(
-                    "Списано для {name} (ID: {user_id})",
+                    "Видано новий абонемент для ID {user_id}",
                     user=callback.from_user,
-                    name=name,
                     user_id=user_id,
                 )
             )
