@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 import os
@@ -54,7 +55,10 @@ class SafeWorksheet:
         async def wrapper(*args: Any, **kwargs: Any):
             default = None
             try:
-                return await attr(*args, **kwargs)
+                result = attr(*args, **kwargs)
+                if inspect.isawaitable(result):
+                    result = await result
+                return result
             except APIError as err:
                 status = getattr(err.response, "status", None)
                 if status in {403, 429}:
