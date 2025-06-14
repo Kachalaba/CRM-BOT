@@ -1,5 +1,6 @@
 # handlers.py (ВИПРАВЛЕНА ВЕРСІЯ)
 
+import inspect
 import logging
 import random
 import time
@@ -32,7 +33,9 @@ async def register_by_contact(message: types.Message):
     user_id = str(message.contact.user_id)
     name = message.contact.first_name or "Клієнт"
     # Звертаємося через sheets.clients_sheet
-    records = await sheets.clients_sheet.get_all_records()
+    records = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(records):
+        records = await records
     if records is None:
         await message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -115,7 +118,9 @@ async def stats(message: types.Message) -> None:
         logger.info("User %s used /stats (cache)", message.from_user.id)
         return
 
-    records = await sheets.clients_sheet.get_all_records()
+    records = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(records):
+        records = await records
     if records is None:
         await message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -136,7 +141,9 @@ async def stats(message: types.Message) -> None:
 @router.callback_query(lambda c: c.data == "my_sessions")
 async def my_sessions(callback: CallbackQuery):
     user_id = str(callback.from_user.id)
-    records = await sheets.clients_sheet.get_all_records()
+    records = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(records):
+        records = await records
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -210,7 +217,9 @@ async def cancel_request(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data.startswith("approve_subscription:"))
 async def approve_subscription(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
-    records = await sheets.clients_sheet.get_all_records()
+    records = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(records):
+        records = await records
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -292,7 +301,9 @@ async def deny_subscription(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data.startswith("approve_subscription:"))
 async def approve_subscription(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
-    records = await sheets.clients_sheet.get_all_records()
+    records = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(records):
+        records = await records
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -331,7 +342,9 @@ async def approve_subscription(callback: CallbackQuery):
 
 @router.callback_query(lambda c: c.data == "admin_panel")
 async def admin_panel(callback: CallbackQuery):
-    clients = await sheets.clients_sheet.get_all_records()
+    clients = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(clients):
+        clients = await clients
     if clients is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
@@ -382,7 +395,9 @@ async def admin_panel(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data.startswith("add_session:"))
 async def add_session(callback: CallbackQuery):
     user_id = callback.data.split(":")[1]
-    records = await sheets.clients_sheet.get_all_records()
+    records = sheets.clients_sheet.get_all_records()
+    if inspect.isawaitable(records):
+        records = await records
     if records is None:
         await callback.message.answer(
             "❗ Виникла помилка під час роботи з базою даних. Спробуйте пізніше."
